@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vaayu - Air Quality Monitor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCORXwuFiCxdH6Me_Lq8MvEXX76qFBnHRs&libraries=places,visualization,geometry"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { 
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .neuro-card {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            box-shadow: 20px 20px 60px #0a0f1a, -20px -20px 60px #2a3441;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+        }
+        .aqi-excellent { background: linear-gradient(135deg, #10b981, #34d399); }
+        .aqi-good { background: linear-gradient(135deg, #22c55e, #4ade80); }
+        .aqi-moderate { background: linear-gradient(135deg, #eab308, #facc15); }
+        .aqi-unhealthy { background: linear-gradient(135deg, #f97316, #fb923c); }
+        .aqi-hazardous { background: linear-gradient(135deg, #dc2626, #ef4444); }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .chat-bubble {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+        .theme-light {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+            color: #1e293b;
+        }
+        .theme-light .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        .theme-light .neuro-card {
+            background: linear-gradient(145deg, #ffffff, #f1f5f9);
+            box-shadow: 20px 20px 60px #d1d5db, -20px -20px 60px #ffffff;
+        }
+        .dropdown-open {
+            max-height: 200px;
+            opacity: 1;
+        }
+        .dropdown-closed {
+            max-height: 0;
+            opacity: 0;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .progress-bar {
+            height: 4px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-value {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        /* Enhanced focus styles for accessibility */
+        button:focus-visible, input:focus-visible, select:focus-visible {
+            outline: 2px solid #10b981;
+            outline-offset: 2px;
+        }
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            .glass-card {
+                background: #1e293b;
+                border: 2px solid #ffffff;
+            }
+            .neuro-card {
+                background: #0f172a;
+                box-shadow: 0 0 0 2px #ffffff;
+            }
+        }
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        /* Logo animation */
+        @keyframes logoPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        .logo-pulse {
+            animation: logoPulse 2s ease-in-out;
+        }
+        /* Custom styles for the route planner screen */
+        .route-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .route-summary {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        /* Custom styles for the authorities chat screen */
+        .chat-sidebar {
+            width: 35%;
+            border-right: 1px solid #1e293b;
+        }
+        .chat-main {
+            width: 65%;
+        }
+        .chat-message-bubble {
+            background-color: #0f172a;
+            border-radius: 1rem;
+            padding: 0.75rem 1rem;
+            max-width: 80%;
+        }
+        .chat-message-bubble.sent {
+            background-color: #10b981;
+            margin-left: auto;
+        }
+        .chat-input-container {
+            border-top: 1px solid #1e293b;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white overflow-x-hidden transition-all duration-300" id="mainBody">
+    <div id="loadingScreen" class="fixed inset-0 bg-slate-900 flex flex-col items-center justify-center z-50">
+        <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center mb-4 logo-pulse">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z"/>
+            </svg>
+        </div>
+        <h2 class="text-xl font-semibold mb-2">Vaayu</h2>
+        <p class="text-slate-400 mb-6">Air Quality Monitoring</p>
+        <div class="progress-bar">
+            <div class="progress-value bg-emerald-400" style="width: 0%"></div>
+        </div>
+    </div>
+
+    <div class="max-w-sm mx-auto bg-slate-900 min-h-screen relative transition-all duration-300 opacity-0" id="appContainer">
+        
+        <div id="globalHeader" class="fixed top-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm bg-slate-900/90 backdrop-blur-lg border-b border-slate-700 px-6 py-4 z-50">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center mr-3">
+                        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z"/>
+                        </svg>
+                    </div>
+                    <h1 class="text-lg font-bold">Vaayu</h1>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <div class="relative">
+                        <button onclick="toggleNotifications()" class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors" aria-label="Notifications">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                            </svg>
+                            <span id="notificationBadge" class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center hidden">3</span>
+                        </button>
+                    </div>
+                    
+                    <button onclick="toggleTheme()" class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors" aria-label="Toggle theme">
+                        <svg id="themeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboardScreen" class="screen pt-20">
+            <div class="px-6 pb-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold">Dashboard</h1>
+                        <p class="text-slate-400 text-sm flex items-center" id="locationDisplay">
+                            <i class="fas fa-map-marker-alt mr-2 text-emerald-400"></i>
+                            <span>Delhi, India</span>
+                            <button onclick="refreshLocation()" class="ml-2 text-slate-400 hover:text-emerald-400" aria-label="Refresh location">
+                                <i class="fas fa-sync-alt text-xs"></i>
+                            </button>
+                        </p>
+                    </div>
+                    <div class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors cursor-pointer" onclick="refreshData()" aria-label="Refresh data">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 mb-6">
+                <div class="neuro-card rounded-3xl p-6 text-center">
+                    <p class="text-slate-400 text-sm mb-2 flex items-center justify-center">
+                        <i class="fas fa-wind mr-2"></i>Current Air Quality Index
+                    </p>
+                    <div class="text-6xl font-bold mb-2 aqi-moderate bg-clip-text text-transparent">78</div>
+                    <div class="inline-flex items-center px-4 py-2 bg-yellow-500/20 rounded-full">
+                        <div class="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
+                        <span class="text-yellow-400 font-medium">Moderate</span>
+                    </div>
+                    <p class="text-slate-400 text-sm mt-3">Air quality is acceptable for most people</p>
+                    <div class="mt-4 flex justify-center">
+                        <div class="flex items-center text-xs text-slate-400 mr-4">
+                            <i class="fas fa-arrow-up text-red-400 mr-1"></i>
+                            <span>Worsening</span>
+                        </div>
+                        <div class="flex items-center text-xs text-slate-400">
+                            <i class="far fa-clock mr-1"></i>
+                            <span>Updated: 2 min ago</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 mb-6">
+                <div class="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 rounded-2xl p-4">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-exclamation-triangle text-white"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-yellow-400">⚠️ Sensitive groups should limit outdoor activity</p>
+                            <p class="text-slate-400 text-sm">Consider wearing a mask if you have respiratory issues</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 mb-6">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fas fa-skull-crossbones mr-2 text-red-400"></i>Pollutant Levels
+                </h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-slate-400 text-sm">PM2.5</span>
+                            <div class="w-6 h-6 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                                <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="text-2xl font-bold">35</div>
+                        <div class="text-xs text-slate-400">μg/m³</div>
+                        <div class="progress-bar mt-2">
+                            <div class="progress-value bg-yellow-400" style="width: 70%"></div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-slate-400 text-sm">PM10</span>
+                            <div class="w-6 h-6 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                                <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="text-2xl font-bold">58</div>
+                        <div class="text-xs text-slate-400">μg/m³</div>
+                        <div class="progress-bar mt-2">
+                            <div class="progress-value bg-yellow-400" style="width: 58%"></div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-slate-400 text-sm">CO₂</span>
+                            <div class="w-6 h-6 bg-orange-500/20 rounded-full flex items-center justify-center">
+                                <div class="w-2 h-2 bg-orange-400 rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="text-2xl font-bold">485</div>
+                        <div class="text-xs text-slate-400">ppm</div>
+                        <div class="progress-bar mt-2">
+                            <div class="progress-value bg-orange-400" style="width: 80%"></div>
+                        </div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-slate-400 text-sm">NO₂</span>
+                            <div class="w-6 h-6 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                                <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="text-2xl font-bold">42</div>
+                        <div class="text-xs text-slate-400">μg/m³</div>
+                        <div class="progress-bar mt-2">
+                            <div class="progress-value bg-yellow-400" style="width: 42%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 mb-6">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fas fa-cloud-sun mr-2 text-blue-400"></i>Weather Conditions
+                </h3>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-slate-400 text-sm">Temperature</span>
+                            <i class="fas fa-temperature-high text-orange-400"></i>
+                        </div>
+                        <div class="text-2xl font-bold" id="temperature">28°C</div>
+                        <div class="text-xs text-slate-400">Feels like <span id="feelsLike">31°C</span></div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-slate-400 text-sm">Humidity</span>
+                            <i class="fas fa-tint text-blue-400"></i>
+                        </div>
+                        <div class="text-2xl font-bold" id="humidity">65%</div>
+                        <div class="text-xs text-slate-400" id="humidityDesc">Moderate</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-slate-400 text-sm">Wind Speed</span>
+                            <i class="fas fa-wind text-cyan-400"></i>
+                        </div>
+                        <div class="text-2xl font-bold" id="windSpeed">12 km/h</div>
+                        <div class="text-xs text-slate-400" id="windDirection">NE</div>
+                    </div>
+                    <div class="glass-card rounded-2xl p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-slate-400 text-sm">Visibility</span>
+                            <i class="fas fa-eye text-purple-400"></i>
+                        </div>
+                        <div class="text-2xl font-bold" id="visibility">8 km</div>
+                        <div class="text-xs text-slate-400" id="visibilityDesc">Good</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 mb-6">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fas fa-chart-line mr-2 text-emerald-400"></i>24-Hour Trend
+                </h3>
+                <div class="glass-card rounded-2xl p-4">
+                    <canvas id="aqiChart" width="300" height="150"></canvas>
+                </div>
+            </div>
+
+            <div class="px-6 mb-20">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fas fa-map-marked-alt mr-2 text-red-400"></i>Pollution Hotspots
+                </h3>
+                <div class="neuro-card rounded-2xl overflow-hidden">
+                    <div id="googleMap" style="height: 300px; width: 100%;"></div>
+                </div>
+                <div class="flex justify-center mt-4">
+                    <button onclick="showScreen('map')" class="text-emerald-400 text-sm flex items-center">
+                        <i class="fas fa-expand mr-2"></i> View full screen map
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="routeScreen" class="screen hidden pt-20">
+            <div class="px-6 pb-4">
+                <h1 class="text-2xl font-bold flex items-center mb-2">
+                    <i class="fas fa-route mr-2 text-emerald-400"></i>Route Planner
+                </h1>
+                <p class="text-sm text-slate-400 mb-4">Find the least polluted route for your journey.</p>
+                <div class="neuro-card rounded-2xl p-4">
+                    <div class="flex flex-col space-y-4">
+                        <div>
+                            <label for="startBlock" class="text-sm text-slate-400 mb-1 block">Start Block</label>
+                            <select id="startBlock" class="w-full bg-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-400 transition-colors">
+                                <option value="" disabled selected>Select a starting point</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="endBlock" class="text-sm text-slate-400 mb-1 block">End Block</label>
+                            <select id="endBlock" class="w-full bg-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-400 transition-colors">
+                                <option value="" disabled selected>Select an ending point</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="travelMode" class="text-sm text-slate-400 mb-1 block">Travel Mode</label>
+                            <select id="travelMode" class="w-full bg-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-400 transition-colors">
+                                <option value="driving">Driving</option>
+                                <option value="walking">Walking</option>
+                                <option value="cycling">Cycling</option>
+                            </select>
+                        </div>
+                        <button onclick="handlePlanRoute()" class="w-full bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl py-3 font-semibold hover:from-emerald-600 hover:to-cyan-600 transition-all flex items-center justify-center">
+                            <i class="fas fa-map-signs mr-2"></i> Plan My Route
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="routeResultContainer" class="hidden px-6 mb-20">
+                <div class="neuro-card rounded-2xl p-4 mb-4">
+                    <h3 class="text-lg font-semibold mb-2">Route Summary</h3>
+                    <p class="text-slate-400 text-sm">Estimated AQI Reduction: <span id="aqiReduction" class="text-emerald-400 font-bold"></span>%</p>
+                    <p class="text-slate-400 text-sm">Average AQI along route: <span id="avgAqi" class="text-yellow-400 font-bold"></span></p>
+                </div>
+                <div class="neuro-card rounded-2xl overflow-hidden">
+                    <div id="routeMap" style="height: 300px; width: 100%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="authoritiesScreen" class="screen hidden pt-20 h-full flex flex-col">
+            <div class="flex-1 flex overflow-hidden">
+                <div class="chat-sidebar flex-none border-r border-slate-800 overflow-y-auto">
+                    <div class="p-4 border-b border-slate-800">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <h2 class="text-xl font-bold">Authorities</h2>
+                            <span class="text-slate-400 text-sm">(100)</span>
+                        </div>
+                        <input id="authoritySearch" type="text" placeholder="Search authorities..."
+                            class="w-full bg-slate-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-emerald-400 transition-colors">
+                        <button onclick="openAlertDialog()" class="mt-2 w-full bg-red-600 rounded-xl py-2 text-sm font-semibold hover:bg-red-700 transition-colors">
+                            <i class="fas fa-bullhorn mr-2"></i> Send Alert to All
+                        </button>
+                    </div>
+                    <div id="authoritiesList" class="flex-1 overflow-y-auto">
+                        </div>
+                </div>
+                <div id="chatMain" class="chat-main flex-1 flex flex-col">
+                    <div id="chatHeader" class="hidden p-4 border-b border-slate-800 flex-none flex items-center space-x-3">
+                        <button onclick="setSelectedAuthority(null)" class="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <div class="w-10 h-10 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center font-bold">DL</div>
+                        <div>
+                            <div id="chatHeaderName" class="font-semibold"></div>
+                            <div id="chatHeaderStatus" class="text-xs text-slate-400"></div>
+                        </div>
+                    </div>
+                    <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                        </div>
+                    <div id="chatInputArea" class="hidden p-4 chat-input-container flex-none">
+                        <div class="flex space-x-2">
+                            <input id="chatInputAuthorities" type="text" placeholder="Type a message..."
+                                class="flex-1 bg-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-400 transition-colors">
+                            <button onclick="sendAuthoritiesMessage()" class="w-10 h-10 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl flex items-center justify-center hover:from-emerald-600 hover:to-cyan-600 transition-all">
+                                <i class="fas fa-paper-plane text-white"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="alertDialog" class="fixed inset-0 bg-slate-900/90 backdrop-blur-lg z-50 hidden flex items-center justify-center p-4">
+                <div class="neuro-card rounded-2xl p-6 w-full max-w-md">
+                    <h3 class="text-xl font-bold mb-4">Send Alert to All Authorities</h3>
+                    <div class="mb-4">
+                        <label for="alertSeverity" class="text-sm text-slate-400 block mb-1">Severity</label>
+                        <select id="alertSeverity" class="w-full bg-slate-800 rounded-xl px-4 py-3 text-white">
+                            <option value="critical">Critical</option>
+                            <option value="high">High</option>
+                            <option value="medium">Medium</option>
+                            <option value="low">Low</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label for="alertType" class="text-sm text-slate-400 block mb-1">Alert Type</label>
+                        <select id="alertType" class="w-full bg-slate-800 rounded-xl px-4 py-3 text-white">
+                            <option value="HEALTH">Health</option>
+                            <option value="POLLUTION SPIKE">Pollution Spike</option>
+                            <option value="EMERGENCY">Emergency</option>
+                        </select>
+                    </div>
+                    <textarea id="alertMessage" rows="3" placeholder="Enter alert message..."
+                              class="w-full bg-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-red-400 transition-colors"></textarea>
+                    <div class="flex justify-end space-x-2 mt-4">
+                        <button onclick="closeAlertDialog()" class="px-4 py-2 bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors">Cancel</button>
+                        <button onclick="sendAlertToAll()" class="px-4 py-2 bg-red-600 rounded-xl hover:bg-red-700 transition-colors">Send Alert</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="mapScreen" class="screen hidden pt-20">
+            <div class="flex items-center justify-between px-6 pb-4">
+                <h1 class="text-2xl font-bold flex items-center">
+                    <i class="fas fa-map-marked-alt mr-2 text-emerald-400"></i>Air Quality Map
+                </h1>
+                <button class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors" onclick="showScreen('dashboard')" aria-label="Close map">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+            </div>
+            
+            <div class="px-6 mb-6">
+                <div class="neuro-card rounded-3xl overflow-hidden">
+                    <div id="fullScreenMap" style="height: 500px; width: 100%;"></div>
+                </div>
+            </div>
+            
+            <div class="px-6 mb-4">
+                <div class="flex space-x-3 justify-center">
+                    <button class="px-4 py-2 bg-slate-800 rounded-xl text-sm flex items-center" onclick="toggleTrafficLayer()">
+                        <i class="fas fa-traffic-light mr-2"></i> Traffic
+                    </button>
+                    <button class="px-4 py-2 bg-emerald-500 rounded-xl text-sm text-white flex items-center" onclick="toggleHeatmap()">
+                        <i class="fas fa-fire mr-2"></i> Heatmap
+                    </button>
+                    <button class="px-4 py-2 bg-slate-800 rounded-xl text-sm flex items-center" onclick="toggleSatelliteView()">
+                        <i class="fas fa-satellite mr-2"></i> Satellite
+                    </button>
+                </div>
+            </div>
+            
+            <div class="px-6 mb-20">
+                <div class="glass-card rounded-2xl p-4">
+                    <h4 class="font-semibold mb-3 flex items-center">
+                        <i class="fas fa-info-circle mr-2 text-emerald-400"></i>Air Quality Legend
+                    </h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-emerald-400 rounded-full mr-3"></div>
+                            <span class="text-sm">Good (0-50)</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-yellow-400 rounded-full mr-3"></div>
+                            <span class="text-sm">Moderate (51-100)</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-orange-400 rounded-full mr-3"></div>
+                            <span class="text-sm">Unhealthy (101-150)</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-4 h-4 bg-red-400 rounded-full mr-3"></div>
+                            <span class="text-sm">Hazardous (151+)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="devicesScreen" class="screen hidden pt-20">
+            <div class="flex items-center justify-between px-6 pb-4">
+                <h1 class="text-2xl font-bold flex items-center">
+                    <i class="fas fa-microchip mr-2 text-cyan-400"></i>IoT Devices
+                </h1>
+                <button class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors" onclick="addNewDevice()" aria-label="Add device">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+            
+            <div class="px-6 space-y-4 mb-20">
+                <div class="neuro-card rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-xl flex items-center justify-center mr-3">
+                                <i class="fas fa-sensor text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold">ESP32-AQ-001</h3>
+                                <p class="text-slate-400 text-sm">Connaught Place Sensor</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>
+                            <span class="text-emerald-400 text-sm">Online</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <p class="text-slate-400 text-xs">Last Sync</p>
+                            <p class="text-sm">2 min ago</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-400 text-xs">Battery</p>
+                            <p class="text-sm">87%</p>
+                        </div>
+                    </div>
+                    <button class="w-full bg-slate-800 hover:bg-slate-700 rounded-xl py-2 text-sm transition-colors flex items-center justify-center">
+                        <i class="fas fa-sliders-h mr-2"></i> Calibrate Sensor
+                    </button>
+                </div>
+                
+                <div class="neuro-card rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-xl flex items-center justify-center mr-3">
+                                <i class="fas fa-sensor text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold">ESP32-AQ-002</h3>
+                                <p class="text-slate-400 text-sm">Noida Sensor</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
+                            <span class="text-red-400 text-sm">Offline</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <p class="text-slate-400 text-xs">Last Sync</p>
+                            <p class="text-sm">1 hour ago</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-400 text-xs">Battery</p>
+                            <p class="text-sm">12%</p>
+                        </div>
+                    </div>
+                    <button class="w-full bg-red-600/20 border border-red-500/30 rounded-xl py-2 text-sm text-red-400 flex items-center justify-center">
+                        <i class="fas fa-unlink mr-2"></i> Connection Lost
+                    </button>
+                </div>
+                
+                <div class="neuro-card rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center">
+                            <div class="w-12 h-12 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-xl flex items-center justify-center mr-3">
+                                <i class="fas fa-sensor text-white"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold">ESP32-AQ-003</h3>
+                                <p class="text-slate-400 text-sm">Gurgaon Sensor</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full mr-2"></div>
+                            <span class="text-emerald-400 text-sm">Online</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 mb-3">
+                        <div>
+                            <p class="text-slate-400 text-xs">Last Sync</p>
+                            <p class="text-sm">30 sec ago</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-400 text-xs">Battery</p>
+                            <p class="text-sm">94%</p>
+                        </div>
+                    </div>
+                    <button class="w-full bg-slate-800 hover:bg-slate-700 rounded-xl py-2 text-sm transition-colors flex items-center justify-center">
+                        <i class="fas fa-sliders-h mr-2"></i> Calibrate Sensor
+                    </button>
+                </div>
+
+                <div class="neuro-card rounded-2xl p-4 border border-cyan-500/30">
+                    <div class="flex items-center mb-3">
+                        <div class="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-400 rounded-xl flex items-center justify-center mr-3">
+                            <i class="fas fa-cloud-download-alt text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-cyan-400">Firmware Update Available</h3>
+                            <p class="text-slate-400 text-sm">Version 2.1.3 - Bug fixes & improvements</p>
+                        </div>
+                    </div>
+                    <button onclick="startOTAUpdate()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl py-3 font-medium hover:from-cyan-600 hover:to-blue-600 transition-all flex items-center justify-center">
+                        <i class="fas fa-download mr-2"></i> Update All Devices
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="forecastScreen" class="screen hidden pt-20">
+            <div class="flex items-center justify-between px-6 pb-4">
+                <h1 class="text-2xl font-bold flex items-center">
+                    <i class="fas fa-cloud-sun-rain mr-2 text-blue-400"></i>Weather Forecast
+                </h1>
+                <button onclick="refreshWeatherData()" class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors" aria-label="Refresh weather">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+
+            <div class="px-6 mb-4">
+                <div class="flex space-x-2 bg-slate-800/50 rounded-xl p-1">
+                    <button onclick="switchForecastTab('today')" class="forecast-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all bg-emerald-500 text-white" data-tab="today">Today</button>
+                    <button onclick="switchForecastTab('hourly')" class="forecast-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all text-slate-400" data-tab="hourly">Hourly</button>
+                    <button onclick="switchForecastTab('daily')" class="forecast-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all text-slate-400" data-tab="daily">Daily</button>
+                    <button onclick="switchForecastTab('radar')" class="forecast-tab flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all text-slate-400" data-tab="radar">Radar</button>
+                </div>
+            </div>
+
+            <div id="todayTab" class="forecast-content px-6 mb-6">
+                <div class="neuro-card rounded-3xl p-6 mb-6">
+                    <div class="text-center mb-4">
+                        <div class="text-sm text-slate-400 mb-1" id="currentDate">Mon, Sep 22</div>
+                        <div class="text-sm text-slate-400 mb-2" id="currentTime">3:25 AM</div>
+                        <div class="text-6xl font-bold mb-2" id="currentTemp">26°C</div>
+                        <div class="text-emerald-400 mb-2" id="realFeel">RealFeel® 31°</div>
+                        <div class="text-slate-300" id="weatherCondition">Cloudy</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="text-center">
+                            <div class="text-slate-400 text-sm">Hi: <span id="todayHigh" class="text-white font-semibold">34°</span></div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-slate-400 text-sm">Lo: <span id="todayLow" class="text-white font-semibold">24°</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center text-slate-400 text-sm" id="todayDescription">Humid with clouds and sun</div>
+                </div>
+
+                <div class="neuro-card rounded-2xl p-4 mb-6">
+                    <h4 class="font-semibold mb-4 flex items-center">
+                        <i class="fas fa-info-circle mr-2 text-emerald-400"></i>More Details
+                    </h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Wind</span>
+                            <span id="detailWind">NNW 8 km/h</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Wind Gusts</span>
+                            <span id="detailGusts">19 km/h</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Air Quality</span>
+                            <span class="text-red-400" id="detailAQI">Poor</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">UV Index</span>
+                            <span id="detailUV">6 High</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="neuro-card rounded-2xl p-4 mb-6">
+                    <h4 class="font-semibold mb-3 flex items-center">
+                        <i class="fas fa-binoculars mr-2 text-emerald-400"></i>Looking Ahead
+                    </h4>
+                    <div class="text-slate-300 text-sm" id="lookingAhead">A thunderstorm Wednesday afternoon</div>
+                </div>
+
+                <div class="neuro-card rounded-2xl p-4">
+                    <h4 class="font-semibold mb-4 flex items-center">
+                        <i class="fas fa-sun mr-2 text-yellow-400"></i>Sun & Moon
+                    </h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-sun text-yellow-400 mr-2"></i>
+                                <span class="text-sm">12 hrs 08 mins</span>
+                            </div>
+                            <div class="text-xs text-slate-400">Rise: <span id="sunrise">6:02 AM</span></div>
+                            <div class="text-xs text-slate-400">Set: <span id="sunset">6:10 PM</span></div>
+                        </div>
+                        <div>
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-moon text-slate-400 mr-2"></i>
+                                <span class="text-sm">New Moon</span>
+                            </div>
+                            <div class="text-xs text-slate-400">Rise: <span id="moonrise">6:16 AM</span></div>
+                            <div class="text-xs text-slate-400">Set: <span id="moonset">6:25 PM</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="hourlyTab" class="forecast-content px-6 mb-6 hidden">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fas fa-clock mr-2 text-emerald-400"></i>Hourly Weather
+                </h3>
+                <div class="space-y-3" id="hourlyForecast">
+                    </div>
+            </div>
+
+            <div id="dailyTab" class="forecast-content px-6 mb-6 hidden">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fas fa-calendar-alt mr-2 text-emerald-400"></i>10-Day Weather Forecast
+                </h3>
+                <div class="space-y-3" id="dailyForecast">
+                    </div>
+            </div>
+
+            <div id="radarTab" class="forecast-content px-6 mb-6 hidden">
+                <h3 class="text-lg font-semibold mb-4 flex items-center">
+                    <i class="fas fa-satellite-dish mr-2 text-emerald-400"></i>Weather Radar
+                </h3>
+                <div class="neuro-card rounded-2xl overflow-hidden mb-4">
+                    <div id="weatherRadar" class="h-64 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+                        <div class="text-center">
+                            <i class="fas fa-satellite text-slate-600 text-5xl mb-4"></i>
+                            <p class="text-slate-400">Weather Radar Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-center space-x-4 mb-4">
+                    <button class="px-4 py-2 bg-slate-800 rounded-xl text-sm flex items-center">
+                        <i class="fas fa-cloud mr-2"></i> Clouds
+                    </button>
+                    <button class="px-4 py-2 bg-emerald-500 rounded-xl text-sm text-white flex items-center">
+                        <i class="fas fa-cloud-rain mr-2"></i> Precipitation
+                    </button>
+                    <button class="px-4 py-2 bg-slate-800 rounded-xl text-sm flex items-center">
+                        <i class="fas fa-thermometer-half mr-2"></i> Temperature
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-6 mb-6">
+                <div class="neuro-card rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="font-semibold flex items-center">
+                            <i class="fas fa-wind mr-2 text-emerald-400"></i>Air Quality
+                        </h4>
+                        <button class="text-emerald-400 text-sm flex items-center">
+                            See More <i class="fas fa-chevron-right ml-1 text-xs"></i>
+                        </button>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-2xl font-bold text-red-400 mb-1" id="aqiStatus">Poor</div>
+                        <div class="text-sm text-slate-400" id="aqiDescription">The air has reached a high level of pollution and is unhealthy for sensitive groups. Reduce time spent outside if you are feeling symptoms such as difficulty breathing or throat irritation.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 mb-20">
+                <div class="neuro-card rounded-2xl p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="font-semibold flex items-center">
+                            <i class="fas fa-heartbeat mr-2 text-red-400"></i>Health & Activities
+                        </h4>
+                        <button class="text-emerald-400 text-sm flex items-center">
+                            See All <i class="fas fa-chevron-right ml-1 text-xs"></i>
+                        </button>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-allergies text-red-400"></i>
+                                </div>
+                                <span class="text-sm">Dust & Dander</span>
+                            </div>
+                            <span class="text-red-400 text-sm font-medium">Extreme</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center mr-3">
+                                    <i class="fas fa-running text-yellow-400"></i>
+                                </div>
+                                <span class="text-sm">Outdoor Activities</span>
+                            </div>
+                            <span class="text-yellow-400 text-sm font-medium">Fair</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="communityScreen" class="screen hidden pt-20">
+            <div class="flex items-center justify-between px-6 pb-4">
+                <h1 class="text-2xl font-bold flex items-center">
+                    <i class="fas fa-users mr-2 text-purple-400"></i>Community
+                </h1>
+                <button onclick="showUserProfile()" class="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors" aria-label="User profile">
+                    <i class="fas fa-user"></i>
+                </button>
+            </div>
+            
+            <div class="px-6 mb-4">
+                <h3 class="text-sm font-medium text-slate-400 mb-3 flex items-center">
+                    <i class="fas fa-circle text-emerald-400 mr-2 text-xs"></i>Online Users (24)
+                </h3>
+                <div class="flex space-x-3 overflow-x-auto pb-2">
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="relative">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-white font-bold">
+                                A
+                            </div>
+                            <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-slate-900"></div>
+                        </div>
+                        <span class="text-xs text-slate-400 mt-1">Arjun</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="relative">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white font-bold">
+                                P
+                            </div>
+                            <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-slate-900"></div>
+                        </div>
+                        <span class="text-xs text-slate-400 mt-1">Priya</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="relative">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-red-400 flex items-center justify-center text-white font-bold">
+                                R
+                            </div>
+                            <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-slate-900"></div>
+                        </div>
+                        <span class="text-xs text-slate-400 mt-1">Raj</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="relative">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-indigo-400 flex items-center justify-center text-white font-bold">
+                                S
+                            </div>
+                            <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full border-2 border-slate-900"></div>
+                        </div>
+                        <span class="text-xs text-slate-400 mt-1">Sneha</span>
+                    </div>
+                    <div class="flex flex-col items-center min-w-[60px]">
+                        <div class="relative">
+                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-teal-400 to-green-400 flex items-center justify-center text-white font-bold">
+                                M
+                            </div>
+                            <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full border-2 border-slate-900"></div>
+                        </div>
+                        <span class="text-xs text-slate-400 mt-1">Maya</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="communityMessages" class="flex-1 overflow-y-auto px-6 space-y-4 mb-4 max-h-96">
+                <div class="flex justify-center">
+                    <div class="bg-slate-800/50 rounded-full px-4 py-2">
+                        <p class="text-xs text-slate-400">Welcome to Vaayu Community! Share air quality tips and experiences.</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-white text-sm font-bold">
+                        A
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-sm font-medium">Arjun</span>
+                            <span class="text-xs text-slate-400">2 min ago</span>
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                        </div>
+                        <div class="glass-card rounded-2xl p-3">
+                            <p class="text-sm">AQI in Connaught Place is looking much better today! Wind is helping clear the air.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center text-white text-sm font-bold">
+                        P
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-sm font-medium">Priya</span>
+                            <span class="text-xs text-slate-400">5 min ago</span>
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                        </div>
+                        <div class="glass-card rounded-2xl p-3">
+                            <p class="text-sm">Thanks for the air purifier recommendations! My indoor AQI dropped from 85 to 35 🌿</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-start space-x-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-400 flex items-center justify-center text-white text-sm font-bold">
+                        R
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="text-sm font-medium">Raj</span>
+                            <span class="text-xs text-slate-400">8 min ago</span>
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full"></div>
+                        </div>
+                        <div class="glass-card rounded-2xl p-3">
+                            <p class="text-sm">Morning jog route via India Gate was perfect today. AQI stayed under 60 throughout! 🏃‍♂️</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="px-6 pb-20">
+                <div class="flex space-x-3">
+                    <button class="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center hover:bg-slate-700 transition-colors" onclick="openMediaPicker()" aria-label="Add media">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <input id="communityInput" type="text" placeholder="Share your thoughts..."
+                           class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-400 transition-colors">
+                    <button onclick="sendCommunityMessage()" class="w-12 h-12 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl flex items-center justify-center hover:from-emerald-600 hover:to-cyan-600 transition-all" aria-label="Send message">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="fixed bottom-20 right-6 z-50">
+            <button onclick="toggleChat()" class="w-14 h-14 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg chat-bubble hover:from-emerald-600 hover:to-cyan-600 transition-all" aria-label="Open chat">
+                <i class="fas fa-comments text-white text-xl"></i>
+            </button>
+        </div>
+
+        <div id="chatInterface" class="fixed inset-0 bg-slate-900/95 backdrop-blur-lg z-50 hidden">
+            <div class="flex flex-col h-full max-w-sm mx-auto">
+                <div class="flex items-center justify-between p-6 border-b border-slate-700">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-robot text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold">AI Assistant</h3>
+                            <p class="text-xs text-slate-400">Online</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleChat()" class="w-8 h-8 bg-slate-800 rounded-full flex items-center justify-center hover:bg-slate-700 transition-colors" aria-label="Close chat">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div id="chatMessages" class="flex-1 overflow-y-auto p-6 space-y-4">
+                    <div class="flex items-start">
+                        <div class="w-8 h-8 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center mr-3 mt-1">
+                            <i class="fas fa-robot text-white text-sm"></i>
+                        </div>
+                        <div class="glass-card rounded-2xl p-3 max-w-xs">
+                            <p class="text-sm">Hello! I'm your AI assistant. Ask me anything about air quality, health recommendations, or device management.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="p-6 border-t border-slate-700">
+                    <div class="flex space-x-3">
+                        <button class="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center hover:bg-slate-700 transition-colors" onclick="showQuickQuestions()" aria-label="Quick questions">
+                            <i class="fas fa-bolt"></i>
+                        </button>
+                        <input id="chatInput" type="text" placeholder="Type your message..."
+                               class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-400 transition-colors">
+                        <button onclick="sendMessage()" class="w-10 h-10 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-xl flex items-center justify-center hover:from-emerald-600 hover:to-cyan-600 transition-all" aria-label="Send message">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="quickQuestions" class="fixed bottom-20 left-0 right-0 max-w-sm mx-auto px-6 z-40 hidden">
+            <div class="glass-card rounded-2xl p-4">
+                <h4 class="font-semibold mb-3 text-sm">Quick Questions</h4>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="askQuickQuestion('current_aqi')" class="text-xs bg-slate-800 rounded-lg py-2 px-3 text-left hover:bg-slate-700 transition-colors">
+                        What's the current AQI?
+                    </button>
+                    <button onclick="askQuickQuestion('health_tips')" class="text-xs bg-slate-800 rounded-lg py-2 px-3 text-left hover:bg-slate-700 transition-colors">
+                        Health tips for today?
+                    </button>
+                    <button onclick="askQuickQuestion('purifier_settings')" class="text-xs bg-slate-800 rounded-lg py-2 px-3 text-left hover:bg-slate-700 transition-colors">
+                        Best purifier settings?
+                    </button>
+                    <button onclick="askQuickQuestion('outdoor_activities')" class="text-xs bg-slate-800 rounded-lg py-2 px-3 text-left hover:bg-slate-700 transition-colors">
+                        Safe for outdoor activities?
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-sm">
+            <div class="bg-slate-800/90 backdrop-blur-lg border-t border-slate-700 px-6 py-3">
+                <div class="flex justify-around">
+                    <button onclick="showScreen('dashboard')" class="nav-btn flex flex-col items-center py-2 px-3 rounded-xl transition-all bg-emerald-500/20" data-screen="dashboard">
+                        <i class="fas fa-home text-lg mb-1 text-emerald-400"></i>
+                        <span class="text-xs text-emerald-400">Dashboard</span>
+                    </button>
+                    <button onclick="showScreen('route')" class="nav-btn flex flex-col items-center py-2 px-3 rounded-xl transition-all" data-screen="route">
+                        <i class="fas fa-route text-lg mb-1 text-slate-400"></i>
+                        <span class="text-xs text-slate-400">Route</span>
+                    </button>
+                    <button onclick="showScreen('devices')" class="nav-btn flex flex-col items-center py-2 px-3 rounded-xl transition-all" data-screen="devices">
+                        <i class="fas fa-microchip text-lg mb-1 text-slate-400"></i>
+                        <span class="text-xs text-slate-400">Devices</span>
+                    </button>
+                    <button onclick="showScreen('forecast')" class="nav-btn flex flex-col items-center py-2 px-3 rounded-xl transition-all" data-screen="forecast">
+                        <i class="fas fa-cloud-sun-rain text-lg mb-1 text-slate-400"></i>
+                        <span class="text-xs text-slate-400">Forecast</span>
+                    </button>
+                    <button onclick="showScreen('community')" class="nav-btn flex flex-col items-center py-2 px-3 rounded-xl transition-all" data-screen="community">
+                        <i class="fas fa-users text-lg mb-1 text-slate-400"></i>
+                        <span class="text-xs text-slate-400">Community</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map, routeMap;
+        let routePolyline = null;
+        let routeMarkers = [];
+
+        // Sample data for route planning
+        const blocksData = [];
+        const delhiCenter = { lat: 28.6139, lng: 77.2090 };
+        for (let i = 1; i <= 100; i++) {
+            const lat = delhiCenter.lat + (Math.random() - 0.5) * 0.1;
+            const lng = delhiCenter.lng + (Math.random() - 0.5) * 0.1;
+            const aqi = Math.floor(Math.random() * 200) + 10;
+            blocksData.push({
+                block_code: `DL${i.toString().padStart(4, '0')}`,
+                name: `Area ${i}`,
+                latitude: lat,
+                longitude: lng,
+                aqi: aqi
+            });
+        }
+        
+        // Authorities Chat data and state
+        let authoritiesData = [];
+        let conversations = {};
+        let selectedAuthority = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            simulateLoading();
+            
+            // Initialize charts and maps after loading
+            setTimeout(() => {
+                initCharts();
+                initMaps();
+                initRoutePlanner();
+                initAuthoritiesChat();
+            }, 2100);
+        });
+        
+        function simulateLoading() {
+            const progressBar = document.querySelector('.progress-value');
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                    document.getElementById('appContainer').classList.remove('opacity-0');
+                    
+                    // Show dashboard directly
+                    showScreen('dashboard');
+                } else {
+                    width += 5;
+                    progressBar.style.width = width + '%';
+                }
+            }, 50); // Faster loading for 2 seconds total
+        }
+        
+        function showScreen(screenName) {
+            // Hide all screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.add('hidden');
+            });
+            
+            // Show the requested screen
+            document.getElementById(screenName + 'Screen').classList.remove('hidden');
+            
+            // Update navigation highlights
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.dataset.screen === screenName) {
+                    btn.classList.add('bg-emerald-500/20');
+                    btn.querySelector('i').classList.remove('text-slate-400');
+                    btn.querySelector('i').classList.add('text-emerald-400');
+                    btn.querySelector('span').classList.remove('text-slate-400');
+                    btn.querySelector('span').classList.add('text-emerald-400');
+                } else {
+                    btn.classList.remove('bg-emerald-500/20');
+                    btn.querySelector('i').classList.add('text-slate-400');
+                    btn.querySelector('i').classList.remove('text-emerald-400');
+                    btn.querySelector('span').classList.add('text-slate-400');
+                    btn.querySelector('span').classList.remove('text-emerald-400');
+                }
+            });
+            
+            // Handle specific screen initializations
+            if (screenName === 'authorities') {
+                renderAuthoritiesList();
+                setSelectedAuthority(null);
+            }
+        }
+        
+        function initCharts() {
+            // Initialize AQI chart
+            const ctx = document.getElementById('aqiChart').getContext('2d');
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['12AM', '3AM', '6AM', '9AM', '12PM', '3PM', '6PM', '9PM'],
+                    datasets: [{
+                        label: 'AQI',
+                        data: [65, 70, 75, 78, 82, 80, 75, 72],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function initMaps() {
+            // Common map options
+            const mapOptions = {
+                center: { lat: 28.6139, lng: 77.2090 }, // Delhi coordinates
+                zoom: 11,
+                styles: [
+                    { "featureType": "all", "elementType": "geometry", "stylers": [{ "color": "#1e293b" }] },
+                    { "featureType": "all", "elementType": "labels.text.fill", "stylers": [{ "color": "#cbd5e1" }] }
+                ]
+            };
+            
+            // Initialize main maps
+            map = new google.maps.Map(document.getElementById('googleMap'), mapOptions);
+            fullScreenMap = new google.maps.Map(document.getElementById('fullScreenMap'), mapOptions);
+            routeMap = new google.maps.Map(document.getElementById('routeMap'), mapOptions);
+            
+            // Add some sample markers for pollution hotspots
+            const hotspots = [
+                { lat: 28.6139, lng: 77.2090, aqi: 85 },
+                { lat: 28.6300, lng: 77.2200, aqi: 92 },
+                { lat: 28.5800, lng: 77.1900, aqi: 78 },
+                { lat: 28.5600, lng: 77.2500, aqi: 105 }
+            ];
+            
+            hotspots.forEach(hotspot => {
+                let color;
+                if (hotspot.aqi <= 50) color = '#10b981';
+                else if (hotspot.aqi <= 100) color = '#eab308';
+                else if (hotspot.aqi <= 150) color = '#f97316';
+                else color = '#ef4444';
+                
+                const markerIcon = {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    fillColor: color,
+                    fillOpacity: 0.8,
+                    strokeWeight: 0,
+                    scale: 10
+                };
+                
+                new google.maps.Marker({ position: hotspot, map: map, icon: markerIcon });
+                new google.maps.Marker({ position: hotspot, map: fullScreenMap, icon: markerIcon });
+            });
+        }
+        
+        function toggleTheme() {
+            const body = document.getElementById('mainBody');
+            const themeIcon = document.getElementById('themeIcon');
+            
+            if (body.classList.contains('theme-light')) {
+                body.classList.remove('theme-light');
+                themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>';
+            } else {
+                body.classList.add('theme-light');
+                themeIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>';
+            }
+        }
+        
+        function toggleChat() {
+            const chatInterface = document.getElementById('chatInterface');
+            if (chatInterface.classList.contains('hidden')) {
+                chatInterface.classList.remove('hidden');
+            } else {
+                chatInterface.classList.add('hidden');
+            }
+        }
+        
+        function refreshData() {
+            // Simulate data refresh
+            const refreshBtn = document.querySelector('[aria-label="Refresh data"]');
+            refreshBtn.innerHTML = '<i class="fas fa-circle-notch animate-spin"></i>';
+            
+            setTimeout(() => {
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                
+                // Show a brief notification that data was refreshed
+                const notification = document.createElement('div');
+                notification.className = 'fixed top-20 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white px-4 py-2 rounded-lg z-50';
+                notification.textContent = 'Data refreshed successfully';
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 2000);
+            }, 1500);
+        }
+        
+        function toggleNotifications() {
+            const badge = document.getElementById('notificationBadge');
+            if (badge.classList.contains('hidden')) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
+        function toggleTrafficLayer() {
+            alert('Traffic layer toggled - this would show/hide traffic data on the map');
+        }
+        
+        function toggleHeatmap() {
+            alert('Heatmap toggled - this would show/hide pollution heatmap on the map');
+        }
+        
+        function toggleSatelliteView() {
+            alert('Satellite view toggled - this would switch between map and satellite view');
+        }
+        
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const messages = document.getElementById('chatMessages');
+            
+            if (input.value.trim() !== '') {
+                const userMessage = document.createElement('div');
+                userMessage.className = 'flex items-start justify-end space-x-3';
+                userMessage.innerHTML = `
+                    <div class="glass-card rounded-2xl p-3 max-w-xs">
+                        <p class="text-sm">${input.value}</p>
+                    </div>
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-400 flex items-center justify-center text-white text-sm font-bold">
+                        Y
+                    </div>
+                `;
+                messages.appendChild(userMessage);
+                input.value = '';
+                messages.scrollTop = messages.scrollHeight;
+                
+                setTimeout(() => {
+                    const aiResponse = document.createElement('div');
+                    aiResponse.className = 'flex items-start';
+                    aiResponse.innerHTML = `
+                        <div class="w-8 h-8 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-full flex items-center justify-center mr-3 mt-1">
+                            <i class="fas fa-robot text-white text-sm"></i>
+                        </div>
+                        <div class="glass-card rounded-2xl p-3 max-w-xs">
+                            <p class="text-sm">I understand your question about air quality. Based on current conditions, I recommend checking the forecast screen for detailed information.</p>
+                        </div>
+                    `;
+                    messages.appendChild(aiResponse);
+                    messages.scrollTop = messages.scrollHeight;
+                }, 1000);
+            }
+        }
+        
+        function showQuickQuestions() {
+            const quickQuestions = document.getElementById('quickQuestions');
+            if (quickQuestions.classList.contains('hidden')) {
+                quickQuestions.classList.remove('hidden');
+            } else {
+                quickQuestions.classList.add('hidden');
+            }
+        }
+        
+        function askQuickQuestion(type) {
+            const questions = document.getElementById('quickQuestions');
+            questions.classList.add('hidden');
+            
+            const input = document.getElementById('chatInput');
+            
+            switch(type) {
+                case 'current_aqi':
+                    input.value = "What's the current AQI in my area?";
+                    break;
+                case 'health_tips':
+                    input.value = "What health tips do you have for today's air quality?";
+                    break;
+                case 'purifier_settings':
+                    input.value = "What are the best air purifier settings for current conditions?";
+                    break;
+                case 'outdoor_activities':
+                    input.value = "Is it safe for outdoor activities right now?";
+                    break;
+            }
+            
+            input.focus();
+        }
+
+        // --- Route Planner Functions ---
+        function initRoutePlanner() {
+            const startSelect = document.getElementById('startBlock');
+            const endSelect = document.getElementById('endBlock');
+            blocksData.forEach(block => {
+                const optionStart = document.createElement('option');
+                optionStart.value = block.block_code;
+                optionStart.textContent = `${block.block_code} - ${block.name}`;
+                startSelect.appendChild(optionStart);
+                
+                const optionEnd = document.createElement('option');
+                optionEnd.value = block.block_code;
+                optionEnd.textContent = `${block.block_code} - ${block.name}`;
+                endSelect.appendChild(optionEnd);
+            });
+        }
+
+        async function handlePlanRoute() {
+            const startBlockCode = document.getElementById('startBlock').value;
+            const endBlockCode = document.getElementById('endBlock').value;
+            const travelMode = document.getElementById('travelMode').value;
+            const resultContainer = document.getElementById('routeResultContainer');
+            
+            if (!startBlockCode || !endBlockCode) {
+                alert('Please select both a start and end block.');
+                return;
+            }
+            
+            // Clear previous route
+            if (routePolyline) {
+                routePolyline.setMap(null);
+            }
+            routeMarkers.forEach(marker => marker.setMap(null));
+            routeMarkers = [];
+
+            // Simulate AI route planning
+            resultContainer.classList.add('hidden');
+            const startBlock = blocksData.find(b => b.block_code === startBlockCode);
+            const endBlock = blocksData.find(b => b.block_code === endBlockCode);
+            
+            const routeResult = {
+                estimated_aqi_reduction: Math.floor(Math.random() * 30) + 5,
+                average_aqi_along_route: Math.floor(Math.random() * 60) + 20,
+                travel_mode: travelMode,
+                blocks_with_coords: []
+            };
+
+            const path = [];
+            path.push({ lat: startBlock.latitude, lng: startBlock.longitude });
+            routeResult.blocks_with_coords.push(startBlock);
+
+            const midpoints = Math.floor(Math.random() * 5) + 2;
+            for (let i = 0; i < midpoints; i++) {
+                const midpoint = {
+                    lat: startBlock.latitude + (endBlock.latitude - startBlock.latitude) * (i + 1) / (midpoints + 1),
+                    lng: startBlock.longitude + (endBlock.longitude - startBlock.longitude) * (i + 1) / (midpoints + 1)
+                };
+                path.push(midpoint);
+                const nearbyBlock = blocksData[Math.floor(Math.random() * blocksData.length)];
+                routeResult.blocks_with_coords.push(nearbyBlock);
+            }
+            path.push({ lat: endBlock.latitude, lng: endBlock.longitude });
+            routeResult.blocks_with_coords.push(endBlock);
+
+            // Render route on map
+            routePolyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: '#10b981',
+                strokeOpacity: 0.8,
+                strokeWeight: 4,
+                map: routeMap
+            });
+            
+            const bounds = new google.maps.LatLngBounds();
+            path.forEach(point => bounds.extend(point));
+            routeMap.fitBounds(bounds);
+
+            // Render markers for start and end
+            const startMarker = new google.maps.Marker({
+                position: { lat: startBlock.latitude, lng: startBlock.longitude },
+                map: routeMap,
+                title: startBlock.name,
+                label: 'A'
+            });
+            const endMarker = new google.maps.Marker({
+                position: { lat: endBlock.latitude, lng: endBlock.longitude },
+                map: routeMap,
+                title: endBlock.name,
+                label: 'B'
+            });
+            routeMarkers.push(startMarker, endMarker);
+            
+            document.getElementById('aqiReduction').textContent = routeResult.estimated_aqi_reduction;
+            document.getElementById('avgAqi').textContent = routeResult.average_aqi_along_route;
+            resultContainer.classList.remove('hidden');
+        }
+
+        // --- Authorities Chat Functions ---
+        function initAuthoritiesChat() {
+            const criticalAlerts = [
+                { id: 'DL0004', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 10:48:14 PM', message: 'Critical pollution levels in Block 4. Avoid outdoor activities.' },
+                { id: 'DL0006', severity: 'high', type: 'POLLUTION SPIKE', timestamp: '9/23/2025, 11:48:14 AM', message: 'Sudden pollution spike detected in Block 6' },
+                { id: 'DL0006', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 11:48:14 AM', message: 'Critical pollution levels in Block 6. Avoid outdoor activities.' },
+                { id: 'DL0010', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 1:48:14 PM', message: 'Critical pollution levels in Block 10. Avoid outdoor activities.' },
+                { id: 'DL0016', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 9:48:14 PM', message: 'Critical pollution levels in Block 16. Avoid outdoor activities.' },
+                { id: 'DL0017', severity: 'high', type: 'POLLUTION SPIKE', timestamp: '9/23/2025, 3:48:14 AM', message: 'Sudden pollution spike detected in Block 17' },
+                { id: 'DL0018', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 11:48:14 AM', message: 'Critical pollution levels in Block 18. Avoid outdoor activities.' },
+                { id: 'DL0021', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 7:48:14 AM', message: 'Critical pollution levels in Block 21. Avoid outdoor activities.' },
+                { id: 'DL0022', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 2:48:14 AM', message: 'Critical pollution levels in Block 22. Avoid outdoor activities.' },
+                { id: 'DL0024', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 12:48:14 AM', message: 'Critical pollution levels in Block 24. Avoid outdoor activities.' },
+                { id: 'DL0026', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 11:48:14 PM', message: 'Critical pollution levels in Block 26. Avoid outdoor activities.' },
+                { id: 'DL0028', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 8:48:14 PM', message: 'Critical pollution levels in Block 28. Avoid outdoor activities.' },
+                { id: 'DL0029', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 7:48:14 AM', message: 'Critical pollution levels in Block 29. Avoid outdoor activities.' },
+                { id: 'DL0033', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 9:48:14 AM', message: 'Critical pollution levels in Block 33. Avoid outdoor activities.' },
+                { id: 'DL0034', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 10:48:14 PM', message: 'Critical pollution levels in Block 34. Avoid outdoor activities.' },
+                { id: 'DL0036', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 1:48:14 AM', message: 'Critical pollution levels in Block 36. Avoid outdoor activities.' },
+                { id: 'DL0037', severity: 'high', type: 'POLLUTION SPIKE', timestamp: '9/23/2025, 11:48:14 AM', message: 'Sudden pollution spike detected in Block 37' },
+                { id: 'DL0038', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 11:48:14 AM', message: 'Critical pollution levels in Block 38. Avoid outdoor activities.' },
+                { id: 'DL0039', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 2:48:14 AM', message: 'Critical pollution levels in Block 39. Avoid outdoor activities.' },
+                { id: 'DL0041', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 5:48:14 AM', message: 'Critical pollution levels in Block 41. Avoid outdoor activities.' },
+                { id: 'DL0042', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 9:48:14 AM', message: 'Critical pollution levels in Block 42. Avoid outdoor activities.' },
+                { id: 'DL0044', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 11:48:14 AM', message: 'Critical pollution levels in Block 44. Avoid outdoor activities.' },
+                { id: 'DL0045', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 6:48:14 AM', message: 'Critical pollution levels in Block 45. Avoid outdoor activities.' },
+                { id: 'DL0046', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 11:48:14 AM', message: 'Critical pollution levels in Block 46. Avoid outdoor activities.' },
+                { id: 'DL0047', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 6:48:14 PM', message: 'Critical pollution levels in Block 47. Avoid outdoor activities.' },
+                { id: 'DL0048', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 7:48:14 AM', message: 'Critical pollution levels in Block 48. Avoid outdoor activities.' },
+                { id: 'DL0052', severity: 'high', type: 'POLLUTION SPIKE', timestamp: '9/23/2025, 9:48:14 AM', message: 'Sudden pollution spike detected in Block 52' },
+                { id: 'DL0056', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 12:48:14 AM', message: 'Critical pollution levels in Block 56. Avoid outdoor activities.' },
+                { id: 'DL0057', severity: 'high', type: 'POLLUTION SPIKE', timestamp: '9/23/2025, 6:48:14 AM', message: 'Sudden pollution spike detected in Block 57' },
+                { id: 'DL0061', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 7:48:14 AM', message: 'Critical pollution levels in Block 61. Avoid outdoor activities.' },
+                { id: 'DL0062', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 1:48:14 AM', message: 'Critical pollution levels in Block 62. Avoid outdoor activities.' },
+                { id: 'DL0063', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 8:48:14 AM', message: 'Critical pollution levels in Block 63. Avoid outdoor activities.' },
+                { id: 'DL0064', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 5:48:14 AM', message: 'Critical pollution levels in Block 64. Avoid outdoor activities.' },
+                { id: 'DL0067', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 7:48:14 PM', message: 'Critical pollution levels in Block 67. Avoid outdoor activities.' },
+                { id: 'DL0068', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 9:48:14 AM', message: 'Critical pollution levels in Block 68. Avoid outdoor activities.' },
+                { id: 'DL0070', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 2:48:14 AM', message: 'Critical pollution levels in Block 70. Avoid outdoor activities.' },
+                { id: 'DL0071', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 11:48:14 AM', message: 'Critical pollution levels in Block 71. Avoid outdoor activities.' },
+                { id: 'DL0072', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 6:48:14 AM', message: 'Critical pollution levels in Block 72. Avoid outdoor activities.' },
+                { id: 'DL0078', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 7:48:14 AM', message: 'Critical pollution levels in Block 78. Avoid outdoor activities.' },
+                { id: 'DL0079', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 5:48:14 AM', message: 'Critical pollution levels in Block 79. Avoid outdoor activities.' },
+                { id: 'DL0080', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 11:48:14 PM', message: 'Critical pollution levels in Block 80. Avoid outdoor activities.' },
+                { id: 'DL0081', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 7:48:14 PM', message: 'Critical pollution levels in Block 81. Avoid outdoor activities.' },
+                { id: 'DL0082', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 4:48:14 AM', message: 'Critical pollution levels in Block 82. Avoid outdoor activities.' },
+                { id: 'DL0084', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 5:48:14 AM', message: 'Critical pollution levels in Block 84. Avoid outdoor activities.' },
+                { id: 'DL0085', severity: 'high', type: 'POLLUTION SPIKE', timestamp: '9/23/2025, 8:48:14 AM', message: 'Sudden pollution spike detected in Block 85' },
+                { id: 'DL0095', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 10:48:14 PM', message: 'Critical pollution levels in Block 95. Avoid outdoor activities.' },
+                { id: 'DL0097', severity: 'high', type: 'POLLUTION SPIKE', timestamp: '9/23/2025, 6:48:14 AM', message: 'Sudden pollution spike detected in Block 97' },
+                { id: 'DL0098', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 3:48:14 AM', message: 'Critical pollution levels in Block 98. Avoid outdoor activities.' },
+                { id: 'DL0099', severity: 'critical', type: 'HEALTH', timestamp: '9/23/2025, 6:48:14 AM', message: 'Critical pollution levels in Block 99. Avoid outdoor activities.' },
+                { id: 'DL0100', severity: 'critical', type: 'HEALTH', timestamp: '9/22/2025, 7:48:14 PM', message: 'Critical pollution levels in Block 100. Avoid outdoor activities.' }
+            ];
+
+            const regions = ['Central Delhi', 'North Delhi', 'South Delhi', 'East Delhi', 'West Delhi'];
+            for (let i = 1; i <= 100; i++) {
+                const authorityId = `DL${i.toString().padStart(4, '0')}`;
+                const region = regions[i % 5];
+                authoritiesData.push({
+                    id: authorityId,
+                    name: `Delhi Block ${i} Authority`,
+                    region: region,
+                    isOnline: Math.random() > 0.3
+                });
+            }
+
+            const savedConversations = localStorage.getItem('authorities-chat-conversations');
+            if (savedConversations) {
+                conversations = JSON.parse(savedConversations);
+            } else {
+                authoritiesData.forEach(authority => {
+                    const authorityAlerts = criticalAlerts.filter(alert => alert.id === authority.id);
+                    if (authorityAlerts.length > 0) {
+                        conversations[authority.id] = authorityAlerts.map(alert => ({
+                            ...alert,
+                            sender: 'system',
+                            timestamp: new Date(alert.timestamp).toLocaleString()
+                        }));
+                        conversations[authority.id].push({
+                            id: Date.now(),
+                            text: 'OK Thank you for the alert. We are taking necessary actions.',
+                            sender: 'authority',
+                            timestamp: new Date().toLocaleString()
+                        });
+                    }
+                });
+                localStorage.setItem('authorities-chat-conversations', JSON.stringify(conversations));
+            }
+            renderAuthoritiesList();
+
+            document.getElementById('authoritySearch').addEventListener('input', renderAuthoritiesList);
+            document.getElementById('chatInputAuthorities').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendAuthoritiesMessage();
+                }
+            });
+        }
+
+        function renderAuthoritiesList() {
+            const listContainer = document.getElementById('authoritiesList');
+            const searchTerm = document.getElementById('authoritySearch').value.toLowerCase();
+            listContainer.innerHTML = '';
+            
+            const filtered = authoritiesData.filter(auth => 
+                auth.id.toLowerCase().includes(searchTerm) || auth.name.toLowerCase().includes(searchTerm)
+            );
+            
+            filtered.forEach(auth => {
+                const hasAlert = conversations[auth.id]?.some(msg => msg.isAlert) || false;
+                const lastMessage = conversations[auth.id]?.[conversations[auth.id].length - 1];
+                
+                const item = document.createElement('div');
+                item.className = `flex items-center space-x-3 p-4 border-b border-slate-800 cursor-pointer hover:bg-slate-800 transition-colors ${selectedAuthority?.id === auth.id ? 'bg-slate-800' : ''}`;
+                item.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-400 flex items-center justify-center text-white font-bold text-sm">
+                        ${auth.id.substring(2)}
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-semibold text-sm">${auth.id} - ${auth.name}</div>
+                        <div class="text-xs text-slate-400">${lastMessage ? lastMessage.text.substring(0, 30) + (lastMessage.text.length > 30 ? '...' : '') : 'No messages'}</div>
+                    </div>
+                    ${hasAlert ? '<i class="fas fa-exclamation-triangle text-red-400 text-xs"></i>' : ''}
+                `;
+                item.onclick = () => setSelectedAuthority(auth);
+                listContainer.appendChild(item);
+            });
+        }
+
+        function setSelectedAuthority(authority) {
+            selectedAuthority = authority;
+            const chatMain = document.getElementById('chatMain');
+            const chatHeader = document.getElementById('chatHeader');
+            const chatInputArea = document.getElementById('chatInputArea');
+            
+            if (authority) {
+                chatMain.classList.remove('hidden');
+                chatHeader.classList.remove('hidden');
+                chatInputArea.classList.remove('hidden');
+                document.getElementById('chatHeaderName').textContent = authority.name;
+                document.getElementById('chatHeaderStatus').textContent = authority.isOnline ? 'Online' : 'Offline';
+                renderChatMessages();
+            } else {
+                chatMain.classList.add('hidden');
+            }
+        }
+
+        function renderChatMessages() {
+            const messagesContainer = document.getElementById('chatMessages');
+            messagesContainer.innerHTML = '';
+            const messages = conversations[selectedAuthority.id] || [];
+            
+            messages.forEach(msg => {
+                const messageBubble = document.createElement('div');
+                messageBubble.className = `flex ${msg.sender === 'user' ? 'justify-end' : ''}`;
+                
+                const bubbleContent = document.createElement('div');
+                bubbleContent.className = `chat-message-bubble ${msg.sender === 'user' ? 'sent' : ''} text-sm`;
+                if (msg.isAlert) {
+                    bubbleContent.innerHTML = `<i class="fas fa-exclamation-triangle mr-2 text-red-400"></i><span class="font-bold text-red-400">ALERT (${msg.severity.toUpperCase()})</span><br>${msg.text}`;
+                } else {
+                    bubbleContent.textContent = msg.text;
+                }
+                
+                messageBubble.appendChild(bubbleContent);
+                messagesContainer.appendChild(messageBubble);
+            });
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function sendAuthoritiesMessage() {
+            const input = document.getElementById('chatInputAuthorities');
+            const messageText = input.value.trim();
+            if (!messageText || !selectedAuthority) return;
+
+            const newMessage = {
+                text: messageText,
+                sender: 'user',
+                timestamp: new Date().toLocaleString()
+            };
+
+            if (!conversations[selectedAuthority.id]) {
+                conversations[selectedAuthority.id] = [];
+            }
+            conversations[selectedAuthority.id].push(newMessage);
+            localStorage.setItem('authorities-chat-conversations', JSON.stringify(conversations));
+            
+            input.value = '';
+            renderChatMessages();
+
+            setTimeout(() => {
+                const reply = {
+                    text: 'Message received. We are looking into this.',
+                    sender: 'authority',
+                    timestamp: new Date().toLocaleString()
+                };
+                conversations[selectedAuthority.id].push(reply);
+                localStorage.setItem('authorities-chat-conversations', JSON.stringify(conversations));
+                renderChatMessages();
+            }, 1500);
+        }
+
+        function openAlertDialog() {
+            document.getElementById('alertDialog').classList.remove('hidden');
+        }
+
+        function closeAlertDialog() {
+            document.getElementById('alertDialog').classList.add('hidden');
+        }
+
+        function sendAlertToAll() {
+            const messageText = document.getElementById('alertMessage').value.trim();
+            const severity = document.getElementById('alertSeverity').value;
+            const type = document.getElementById('alertType').value;
+            
+            if (!messageText) {
+                alert('Please enter a message for the alert.');
+                return;
+            }
+
+            authoritiesData.forEach(auth => {
+                const newAlert = {
+                    text: messageText,
+                    sender: 'user',
+                    timestamp: new Date().toLocaleString(),
+                    isAlert: true,
+                    severity: severity,
+                    type: type
+                };
+                if (!conversations[auth.id]) {
+                    conversations[auth.id] = [];
+                }
+                conversations[auth.id].push(newAlert);
+            });
+            
+            localStorage.setItem('authorities-chat-conversations', JSON.stringify(conversations));
+            renderAuthoritiesList();
+            closeAlertDialog();
+            alert('Alert sent to all 100 authorities!');
+        }
+    </script>
+</body>
+</html>
